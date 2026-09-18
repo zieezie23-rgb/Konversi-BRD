@@ -1,0 +1,19 @@
+{
+  "name": "Indomaret - Konversi File BRD",
+  "short_name": "Konversi BRD",
+  "description": "Distribution Center Tools - konversi file .brd menjadi .brd + .csv",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f5f7",
+  "theme_color": "#D71A21",
+  "icons": [
+    {
+      "src": "assets/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
