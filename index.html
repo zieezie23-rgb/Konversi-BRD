@@ -110,6 +110,17 @@
   button.primary:hover{ background:var(--red-dark); }
   button.primary:disabled{ background:#c9b9ba; cursor:not-allowed; }
 
+  .upload-actions{ display:none; gap:10px; margin-top:14px; }
+  .upload-actions button{
+    flex:1; padding:12px; border-radius:7px; font-size:14px; font-weight:700; cursor:pointer;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  button.secondary{
+    background:#fff; color:var(--red); border:1.5px solid var(--red);
+  }
+  button.secondary:hover{ background:#fdf0f0; }
+  .upload-actions button.primary{ width:auto; margin-top:0; }
+
   .status{ margin-top:14px; font-size:13.5px; font-family:var(--mono); }
   .status.ok{ color:var(--blue); font-weight:600; }
   .status.err{ color:var(--warn); }
@@ -135,6 +146,11 @@
       <p><strong>Klik untuk memilih file</strong> atau seret ke sini</p>
       <p style="font-size:12px;">Bisa pilih lebih dari 1 file sekaligus — isinya akan digabung jadi satu</p>
       <div class="filename" id="filename"></div>
+      <div class="status" id="uploadStatus"></div>
+    </div>
+    <div class="upload-actions" id="uploadActions">
+      <button type="button" class="secondary" id="addMoreBtn">+ Tambah file lagi</button>
+      <button type="button" class="primary" id="continueBtn">Lanjut pilih export</button>
     </div>
     <input type="file" id="fileInput" accept=".brd,.BRD,.csv,.CSV,text/csv,text/plain" multiple>
   </div>
@@ -167,9 +183,15 @@ let rawText = '';
 let mergeWarning = '';
 let detectedName = 'BRD';
 let uploadedFileDates = [];
+let selectedFiles = [];
+let advancedToExport = false;
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
 const filenameEl = document.getElementById('filename');
+const uploadStatusEl = document.getElementById('uploadStatus');
+const uploadActions = document.getElementById('uploadActions');
+const addMoreBtn = document.getElementById('addMoreBtn');
+const continueBtn = document.getElementById('continueBtn');
 const configCard = document.getElementById('configCard');
 const previewNames = document.querySelectorAll('.previewName');
 const processBtn = document.getElementById('processBtn');
@@ -181,10 +203,17 @@ dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
 dropzone.addEventListener('drop', e => {
   e.preventDefault();
   dropzone.classList.remove('drag');
-  if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+  if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
 });
 fileInput.addEventListener('change', e => {
-  if (e.target.files.length) handleFiles(e.target.files);
+  if (e.target.files.length) addFiles(e.target.files);
+  fileInput.value = ''; // supaya bisa pilih file yang sama lagi lain waktu
+});
+addMoreBtn.addEventListener('click', () => fileInput.click());
+continueBtn.addEventListener('click', () => {
+  advancedToExport = true;
+  configCard.style.display = 'block';
+  configCard.scrollIntoView({ behavior:'smooth', block:'start' });
 });
 
 // Minimal CSV line parser that respects double-quoted fields containing commas.
@@ -218,10 +247,21 @@ function readFileAsText(file){
   });
 }
 
-async function handleFiles(fileList){
-  const files = Array.from(fileList);
+function addFiles(fileList){
+  const incoming = Array.from(fileList);
+  incoming.forEach(f => {
+    const dup = selectedFiles.some(sf => sf.name === f.name && sf.size === f.size);
+    if(!dup) selectedFiles.push(f);
+  });
+  processSelectedFiles();
+}
+
+async function processSelectedFiles(){
+  const files = selectedFiles;
   statusEl.textContent = '';
   statusEl.className = 'status';
+  uploadStatusEl.textContent = '';
+  uploadStatusEl.className = 'status';
   uploadedFileDates = files.map(f => parseDateFromFilename(f.name)).filter(Boolean);
 
   dropzone.classList.add('loading');
@@ -267,11 +307,12 @@ async function handleFiles(fileList){
 
     detectCode(rawText);
     updateMstxhVisibility();
-    configCard.style.display = 'block';
     filenameEl.innerHTML = files.map(f => '✓ ' + escapeHtml(f.name)).join('<br>');
+    uploadActions.style.display = 'flex';
+    if(advancedToExport) configCard.style.display = 'block';
   }catch(err){
-    statusEl.className = 'status err';
-    statusEl.textContent = 'Gagal membaca file: ' + err.message;
+    uploadStatusEl.className = 'status err';
+    uploadStatusEl.textContent = 'Gagal membaca file: ' + err.message;
     filenameEl.innerHTML = files.map(f => '✗ ' + escapeHtml(f.name)).join('<br>');
   }finally{
     dropzone.classList.remove('loading');
@@ -314,25 +355,29 @@ function escapeHtml(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// Nama file MSTXH[kode gudang].[bulan] — dipakai untuk label pilihan dan nama unduhan
-function getMstxhName(month){
+// Nama file export: MSTDCI[yy].[mmm] untuk gudang G113, selain itu MSTDPO[yy].[mmm]
+function getMstxhName(year, month){
   const kodeGudang = detectedName.toUpperCase().replace(/^BRD/, '');
-  return ('MSTXH' + kodeGudang + (month ? '.' + month : '')).toUpperCase();
+  const prefix = kodeGudang === 'G113' ? 'MSTDCI' : 'MSTDPO';
+  let name = prefix + (year || '');
+  if(month) name += '.' + month;
+  return name.toUpperCase();
 }
 
-function detectMonth(){
-  if(!rawText) return '';
+function detectMstgMeta(){
+  if(!rawText) return { year:'', month:'' };
   try{
     const r = buildMstgBrd(rawText);
-    return (r && r.month) || '';
+    return { year: (r && r.year) || '', month: (r && r.month) || '' };
   }catch(e){
-    return '';
+    return { year:'', month:'' };
   }
 }
 
 function updatePreviewName(){
   previewNames.forEach(el => { el.textContent = detectedName.toUpperCase(); });
-  document.getElementById('mstxhName').textContent = getMstxhName(detectMonth());
+  const meta = detectMstgMeta();
+  document.getElementById('mstxhName').textContent = getMstxhName(meta.year, meta.month);
 }
 updatePreviewName();
 
@@ -503,8 +548,11 @@ function buildMstgBrd(text){
     const krmValue = krm === 'N' ? 'FALSE' : (krm === 'Y' ? 'TRUE' : krm);
 
     const tgl = normalizeDate(f[idx['HIS_TGL_DOC']]);
-    const mm = monthOf(f[idx['HIS_TGL_DOC']]);
-    if(MONTH_ABBR[mm]) monthCounts[mm] = (monthCounts[mm] || 0) + 1;
+    const tglParts = tgl.split('/');
+    if(tglParts.length === 3 && MONTH_ABBR[tglParts[1]]){
+      const key = tglParts[2] + '-' + tglParts[1];
+      monthCounts[key] = (monthCounts[key] || 0) + 1;
+    }
 
     const row = [
       '',                                      // RECID
@@ -531,10 +579,16 @@ function buildMstgBrd(text){
     selected++;
   }
 
-  // Bulan file = bulan yang paling banyak muncul di tanggal dokumen
-  const topMonth = Object.keys(monthCounts).sort((a,b) => monthCounts[b]-monthCounts[a])[0];
+  // Bulan (& tahun) file = yang paling banyak muncul di tanggal dokumen
+  const topKey = Object.keys(monthCounts).sort((a,b) => monthCounts[b]-monthCounts[a])[0];
+  let month = '', year = '';
+  if(topKey){
+    const [yyyy, mm] = topKey.split('-');
+    month = MONTH_ABBR[mm] || '';
+    year = yyyy.slice(-2);
+  }
 
-  return { text: out.join('\n'), selected, month: topMonth ? MONTH_ABBR[topMonth] : '' };
+  return { text: out.join('\n'), selected, month, year };
 }
 
 
@@ -642,8 +696,8 @@ processBtn.addEventListener('click', async () => {
     if(picked.includes('csv'))  await send(rawText, base + '.CSV', 'text/csv');
     if(picked.includes('mstg')) await send(mstg.text, 'MSTG.BRD', 'application/octet-stream');
     if(picked.includes('mstxh')){
-      // MSTXH[kode gudang].[bulan] — isinya sama dengan MSTG.BRD
-      await send(mstg.text, getMstxhName(mstg.month), 'application/octet-stream');
+      // MSTDCI/MSTDPO[yy].[bulan] — isinya sama dengan MSTG.BRD
+      await send(mstg.text, getMstxhName(mstg.year, mstg.month), 'application/octet-stream');
     }
     if(mstg) info.push(mstg.selected + ' baris mstg');
     if(picked.includes('alokasi')){
