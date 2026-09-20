@@ -49,9 +49,10 @@
     display:flex;
     align-items:center;
     gap:12px;
+    border-bottom:6px solid var(--yellow);
   }
   .masthead .app-icon{
-    height:40px; width:auto; flex:0 0 auto;
+    height:64px; width:auto; flex:0 0 auto;
   }
   .masthead .titles{ line-height:1.25; }
   .masthead h1{ font-size:19px; font-weight:800; margin:0; letter-spacing:-0.01em; }
@@ -140,7 +141,7 @@
       <label class="opt"><input type="checkbox" class="exportOpt" value="csv"> <span class="fname"><span class="previewName">BRD</span>.CSV</span></label>
       <label class="opt" id="optMstg"><input type="checkbox" class="exportOpt" value="mstg"> <span class="fname">MSTG.BRD</span></label>
       <label class="opt" id="optMstxh" style="display:none;"><input type="checkbox" class="exportOpt" value="mstxh"> <span class="fname" id="mstxhName">MSTXH</span></label>
-      <label class="opt"><input type="checkbox" class="exportOpt" value="alokasi"> <span class="fname">ALOKASI.CSV</span></label>
+      <label class="opt"><input type="checkbox" class="exportOpt" value="alokasi"> <span class="fname">NPB.CSV</span></label>
     </div>
 
     <button class="primary" id="processBtn" disabled>Pilih file dulu</button>
@@ -326,8 +327,12 @@ function normalizeDate(value){
   const s = String(value || '').trim();
   if(!s) return '';
 
+  // yyyymmdd tanpa pemisah (mis. 20260917 pada HIS_TGL_DOC)
+  let m = s.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if(m) return m[3] + '/' + m[2] + '/' + m[1];
+
   // Already dd/mm/yyyy
-  let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
   if(m) return String(m[1]).padStart(2,'0') + '/' + String(m[2]).padStart(2,'0') + '/' + m[3];
 
   // yyyy-mm-dd / yyyy/mm/dd
@@ -472,7 +477,7 @@ function buildMstgBrd(text){
 
   const allowed = new Set(['BPB DC','BPB TOKO','NPB DC','NPB TOKO']);
   const monthCounts = {};
-  const out = [outHeaders.map(csvEscape).join(',')];
+  const out = [outHeaders.map(csvEscape).join(';')];
   let selected = 0;
 
   for(let i=1; i<lines.length; i++){
@@ -508,7 +513,7 @@ function buildMstgBrd(text){
       f[idx['HIS_PPN_JUAL']].trim(),           // PPN_JUAL
       f[idx['HDR_KETER']].trim()               // KETER
     ];
-    out.push(row.map(csvEscape).join(','));
+    out.push(row.map(csvEscape).join(';'));
     selected++;
   }
 
@@ -629,7 +634,7 @@ processBtn.addEventListener('click', async () => {
     if(mstg) info.push(mstg.selected + ' baris mstg');
     if(picked.includes('alokasi')){
       const alokasi = buildAlokasiCsv(rawText);
-      await send(alokasi.text, 'ALOKASI.CSV', 'text/csv');
+      await send(alokasi.text, 'NPB.CSV', 'text/csv');
       info.push(alokasi.selected + ' baris alokasi');
     }
 
