@@ -150,7 +150,7 @@
     </div>
     <div class="upload-actions" id="uploadActions">
       <button type="button" class="secondary" id="addMoreBtn">+ Tambah file lagi</button>
-      <button type="button" class="primary" id="continueBtn">Lanjut pilih export</button>
+      <button type="button" class="primary" id="continueBtn">Lanjut</button>
     </div>
     <input type="file" id="fileInput" accept=".brd,.BRD,.csv,.CSV,text/csv,text/plain" multiple>
   </div>
@@ -184,7 +184,6 @@ let mergeWarning = '';
 let detectedName = 'BRD';
 let uploadedFileDates = [];
 let selectedFiles = [];
-let advancedToExport = false;
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
 const filenameEl = document.getElementById('filename');
@@ -211,7 +210,7 @@ fileInput.addEventListener('change', e => {
 });
 addMoreBtn.addEventListener('click', () => fileInput.click());
 continueBtn.addEventListener('click', () => {
-  advancedToExport = true;
+  updateMstxhVisibility(); // cek apakah data yang terkumpul sejauh ini sudah 1 bulan penuh -> tentukan MSTG atau MSTXH/MSTD yang muncul
   configCard.style.display = 'block';
   configCard.scrollIntoView({ behavior:'smooth', block:'start' });
 });
@@ -306,10 +305,8 @@ async function processSelectedFiles(){
     }
 
     detectCode(rawText);
-    updateMstxhVisibility();
     filenameEl.innerHTML = files.map(f => '✓ ' + escapeHtml(f.name)).join('<br>');
     uploadActions.style.display = 'flex';
-    if(advancedToExport) configCard.style.display = 'block';
   }catch(err){
     uploadStatusEl.className = 'status err';
     uploadStatusEl.textContent = 'Gagal membaca file: ' + err.message;
