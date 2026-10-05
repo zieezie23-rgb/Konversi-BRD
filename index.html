@@ -762,7 +762,7 @@ function buildAlokasiCsv(text){
     throw new Error('Kolom untuk alokasi.csv tidak ditemukan: ' + missing.join(', '));
   }
 
-  const outHeaders = ['TANGGAL1','GAB','TOKO','PRDCD','QTY','QTY PO','QTY ALOK','KETER'];
+  const outHeaders = ['GAB','TANGGAL1','QTY_ALOK','KETER'];
   const out = [outHeaders.map(csvEscape).join(',')];
   let selected = 0;
 
@@ -785,13 +785,12 @@ function buildAlokasiCsv(text){
       (Number.isFinite(qtyPo) ? qtyPo : 0)
     );
 
+    // QTY_ALOK = 0 tidak diikutkan
+    if(qtyAlok === 0) continue;
+
     const row = [
-      normalizeDate(f[idx['HIS_TGL_DOC']]),
       toko + prdcd,
-      toko,
-      prdcd,
-      qtyRaw,
-      qtyPoRaw,
+      normalizeDate(f[idx['HIS_TGL_DOC']]),
       String(qtyAlok),
       String(f[idx['HDR_KETER']] || '').trim()
     ];

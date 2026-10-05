@@ -1,4 +1,4 @@
-const CACHE_NAME = 'brd-konversi-v2';
+const CACHE_NAME = 'brd-konversi-v3';
 const ASSETS = [
   './',
   './index.html',
