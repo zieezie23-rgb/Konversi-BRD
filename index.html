@@ -779,20 +779,26 @@ function buildAlokasiCsv(text){
     // QTY ALOK = max(0, QTY - QTY PO)
     const qty = Number(qtyRaw.replace(/,/g, ''));
     const qtyPo = Number(qtyPoRaw.replace(/,/g, ''));
-    const qtyAlok = Math.max(
+    let qtyAlok = Math.max(
       0,
       (Number.isFinite(qty) ? qty : 0) -
       (Number.isFinite(qtyPo) ? qtyPo : 0)
     );
 
-    // QTY_ALOK = 0 tidak diikutkan
-    if(qtyAlok === 0) continue;
+    const keter = String(f[idx['HDR_KETER']] || '').trim();
+
+    if(qtyAlok === 0){
+      // Selisih 0: tetap dibawa jika KETER tidak kosong (QTY_ALOK diisi HIS_QTY),
+      // kalau KETER kosong baris tidak diikutkan.
+      if(keter === '') continue;
+      qtyAlok = Number.isFinite(qty) ? qty : 0;
+    }
 
     const row = [
       toko + prdcd,
       normalizeDate(f[idx['HIS_TGL_DOC']]),
       String(qtyAlok),
-      String(f[idx['HDR_KETER']] || '').trim()
+      keter
     ];
 
     out.push(row.map(csvEscape).join(','));
